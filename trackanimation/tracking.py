@@ -147,7 +147,7 @@ class DFTrack:
                       )
         return self.get_tracks_by_place(place, timeout, only_points)
 
-    def get_tracks_by_place(self, place, timeout=10, only_points=True):
+    def get_tracks_by_place(self, place, timeout=10, only_points=True, **kwargs):
         """
         Gets the points of the specified place searching in Google's API
         and, if it does not get anything, it tries with OpenStreetMap's API.
@@ -169,7 +169,10 @@ class DFTrack:
             A DFTrack with the points of the specified place or
             None if anything is found.
         """
-        track_place = self.get_tracks_by_place_google(place, timeout=timeout, only_points=only_points)
+        google_api_key=kwargs.get('google_api_key', None)
+        track_place = self.get_tracks_by_place_google(place, timeout=timeout,
+                                                      only_points=only_points,
+                                                      api_key=google_api_key)
         if track_place is not None:
             return track_place
 
@@ -208,7 +211,8 @@ class DFTrack:
                       )
         return self.get_tracks_by_place_google(place, timeout, only_points)
 
-    def get_tracks_by_place_google(self, place, timeout=10, only_points=True):
+    def get_tracks_by_place_google(self, place, timeout=10, only_points=True,
+                                   api_key=None):
         """
         Gets the points of the specified place searching in Google's API.
 
@@ -230,7 +234,7 @@ class DFTrack:
             None if anything is found.
         """
         try:
-            geolocator = geopy.GoogleV3()
+            geolocator = geopy.GoogleV3(api_key=api_key)
             location = geolocator.geocode(place, timeout=timeout)
         except geopy.exc.GeopyError:
             return None
