@@ -189,9 +189,6 @@ class AnimationTrack:
 
         pipe = subprocess.Popen(cmdstring, stdin=subprocess.PIPE)
 
-        for axarr in self.axarr:
-            axarr.lines = []
-
         for point, next_point in self.compute_points(linewidth=linewidth):
             if self.is_new_frame(point, next_point):
                 buffer = io.BytesIO()
