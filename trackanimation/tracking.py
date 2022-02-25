@@ -28,6 +28,8 @@ from pandas import DataFrame
 from tqdm import tqdm
 import geopy
 
+import sqlite3
+
 # Own modules
 from trackanimation import utils as trk_utils
 from trackanimation.utils import TrackException
@@ -170,13 +172,17 @@ class DFTrack:
             None if anything is found.
         """
         google_api_key=kwargs.get('google_api_key', None)
+        osm_user_agent=kwargs.get('osm_user_agent', None)
+
         track_place = self.get_tracks_by_place_google(place, timeout=timeout,
                                                       only_points=only_points,
                                                       api_key=google_api_key)
         if track_place is not None:
             return track_place
 
-        track_place = self.get_tracks_by_place_osm(place, timeout=timeout, only_points=only_points)
+        track_place = self.get_tracks_by_place_osm(place, timeout=timeout,
+                                                   only_points=only_points,
+                                                   user_agent=osm_user_agent)
         if track_place is not None:
             return track_place
 
@@ -234,6 +240,7 @@ class DFTrack:
             None if anything is found.
         """
         try:
+            #geolocator = geopy.GoogleV3()
             geolocator = geopy.GoogleV3(api_key=api_key)
             location = geolocator.geocode(place, timeout=timeout)
         except geopy.exc.GeopyError:
@@ -282,7 +289,8 @@ class DFTrack:
                       )
         return self.get_tracks_by_place_osm(place, timeout, only_points)
 
-    def get_tracks_by_place_osm(self, place, timeout=10, only_points=True):
+    def get_tracks_by_place_osm(self, place, timeout=10, only_points=True,
+                                **kwargs):
         """
         Gets the points of the specified place searching in OpenStreetMap's API.
 
@@ -303,16 +311,70 @@ class DFTrack:
             A DFTrack with the points of the specified place or
             None if anything is found.
         """
-        try:
-            geolocator = geopy.Nominatim()
-            location = geolocator.geocode(place, timeout=timeout)
-        except geopy.exc.GeopyError:
-            return None
+        user_agent = kwargs.get('user_agent', None)
+        cache_db = kwargs.get('cache_db', None)
 
-        southwest_lat = float(location.raw['boundingbox'][0])
-        northeast_lat = float(location.raw['boundingbox'][1])
-        southwest_lng = float(location.raw['boundingbox'][2])
-        northeast_lng = float(location.raw['boundingbox'][3])
+        db = None
+        cur = None
+        entry = None
+
+        if cache_db:
+            db = sqlite3.connect(cache_db)
+            cur = db.cursor()
+
+            cur.execute('''CREATE TABLE IF NOT EXISTS location_cache(
+                     location TEXT ,
+                     source TEXT,
+                     southwest_lat REAL,
+                     northeast_lat REAL,
+                     southwest_lng REAL,
+                     northeast_lng REAL
+                     )''')
+
+            cur.execute(
+                'SELECT southwest_lat, northeast_lat, southwest_lng, northeast_lng FROM location_cache WHERE location=?',
+                    (place,)
+            )
+            entry = cur.fetchone()
+
+            if entry is not None:
+                southwest_lat = entry[0]
+                northeast_lat = entry[1]
+                southwest_lng = entry[2]
+                northeast_lng = entry[3]
+            else:
+                try:
+                    geolocator = geopy.Nominatim(user_agent=user_agent)
+                    location = geolocator.geocode(place, timeout=timeout)
+                except geopy.exc.GeopyError:
+                    return None
+
+                southwest_lat = float(location.raw['boundingbox'][0])
+                northeast_lat = float(location.raw['boundingbox'][1])
+                southwest_lng = float(location.raw['boundingbox'][2])
+                northeast_lng = float(location.raw['boundingbox'][3])
+
+                cur.execute(
+                    ("INSERT INTO location_cache "
+                     "(location, source, southwest_lat, northeast_lat, southwest_lng, northeast_lng) "
+                     "VALUES (?, ?, ?, ?, ?, ?)"),
+                    (place, "osm", southwest_lat, northeast_lat, southwest_lng, northeast_lng)
+                )
+                db.commit()
+        else:
+            try:
+                geolocator = geopy.Nominatim(user_agent=user_agent)
+                location = geolocator.geocode(place, timeout=timeout)
+            except geopy.exc.GeopyError:
+                return None
+
+            southwest_lat = float(location.raw['boundingbox'][0])
+            northeast_lat = float(location.raw['boundingbox'][1])
+            southwest_lng = float(location.raw['boundingbox'][2])
+            northeast_lng = float(location.raw['boundingbox'][3])
+
+        #print(f"sw_lat, ne_lat, sw_lng, ne_lng = {southwest_lat}, {northeast_lat}, {southwest_lng}, {northeast_lng}")
+
 
         df_place = self.df[(self.df['Latitude'] < northeast_lat) & (self.df['Longitude'] < northeast_lng) &
                            (self.df['Latitude'] > southwest_lat) & (self.df['Longitude'] > southwest_lng)]
