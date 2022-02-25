@@ -158,12 +158,20 @@ class AnimationTrack:
         for name in tqdm(grouped, desc='Groups'):
             df_slice = df[df['track_code'] == name]
 
-            lat = df_slice['Latitude'].values
-            lng = df_slice['Longitude'].values
-            if self.map:
-                lng, lat = self.map[int(df_slice['Axes'].unique())].to_pixels(lat, lng)
+            lat_ = df_slice['Latitude'].values
+            lng_ = df_slice['Longitude'].values
 
-            self.axarr[int(df_slice['Axes'].unique())].plot(lng, lat, color='deepskyblue', lw=linewidth, alpha=1)
+            if len(lat_) != len(lng_):
+                return
+
+            for i in range(0, len(lat_)):
+                lat = lat_[i]
+                lng = lng_[i]
+
+                if self.map:
+                    lng, lat = self.map[int(df_slice['Axes'].unique())].to_pixels(lat, lng)
+
+                self.axarr[int(df_slice['Axes'].unique())].plot(lng, lat, color='deepskyblue', lw=linewidth, alpha=1)
 
     def makeVideo(self, linewidth=0.5, output_file='video', framerate=5):
         warnings.warn("The makeVideo function is deprecated and "
@@ -182,12 +190,15 @@ class AnimationTrack:
                      '-f', 'image2pipe',
                      '-i', 'pipe:',
                      '-r', '25',
-                     '-s', '1280x960',
+                     '-s', '2560x1920',
                      '-pix_fmt', 'yuv420p',
                      output_file + '.mp4'
                      )
 
         pipe = subprocess.Popen(cmdstring, stdin=subprocess.PIPE)
+
+        for axarr in self.axarr:
+            axarr.lines.clear()
 
         for point, next_point in self.compute_points(linewidth=linewidth):
             if self.is_new_frame(point, next_point):
@@ -237,7 +248,7 @@ class AnimationTrack:
 
     def make_image(self, linewidth=0.5, output_file='image', framerate=5, save_fig_at=None):
         for axarr in self.axarr:
-            axarr.lines = []
+            axarr.lines.clear()
 
         frame = 1
         if save_fig_at is not None or 'Color' in self.track_df.df:
