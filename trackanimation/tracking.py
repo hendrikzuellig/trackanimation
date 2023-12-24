@@ -289,8 +289,8 @@ class DFTrack:
                       )
         return self.get_tracks_by_place_osm(place, timeout, only_points)
 
-    def get_tracks_by_place_osm(self, place, timeout=10, only_points=True,
-                                **kwargs):
+    def get_tracks_by_place_osm(self, place, timeout=10, only_points=True):
+        print("Trying with OpenStreetMap's API...")
         """
         Gets the points of the specified place searching in OpenStreetMap's API.
 
@@ -572,8 +572,7 @@ class DFTrack:
 
         for name in tqdm(grouped, desc='Groups'):
             df_slice = df_cum[df_cum['CodeRoute'] == name]
-            time_diff = float(
-                (df_slice[['TimeDifference']].sum() / time) / framerate)  # Track duration divided by time and framerate
+            time_diff = float((df_slice['TimeDifference'].sum() / time) / framerate)  # Track duration divided by time and framerate
 
             df_range = df_slice[df_slice['CumTimeDiff'] == 0]
             df_range = df_range.reset_index(drop=True)

@@ -141,8 +141,7 @@ def get_coordinates(start_point, end_point, distance_meters):
     bearing = get_bearing(start_point, end_point)
 
     distance_km = distance_meters / 1000
-    d = geo_dist.distance(kilometers=distance_km)
-    destination = d.destination(point=start_point, bearing=bearing)
+    destination = geopy.distance.distance(kilometers=distance_km).destination(point=start_point, bearing=90)
 
     return geopy.Point(destination.latitude, destination.longitude)
 
@@ -201,7 +200,7 @@ def get_point_in_the_middle(start_point, end_point, time_diff, point_idx):
     cum_time_diff = int(start_point['CumTimeDiff'].item() + time_diff_proportion)
     # date = datetime.strptime(start_point['Date'].item(), '%Y-%m-%d %H:%M:%S') + dt.timedelta(seconds=int(
     # time_diff_proportion))
-    date = pd.to_datetime(start_point['Date'].astype(str), format='%Y-%m-%d %H:%M:%S') + dt.timedelta(
+    date = pd.to_datetime(start_point['Date'].astype(str), format='%Y-%m-%d %H:%M:%S%z') + dt.timedelta(
         seconds=int(time_diff_proportion))
     altitude = (end_point['Altitude'].item() + start_point['Altitude'].item()) / 2
     name = start_point['CodeRoute'].item()
